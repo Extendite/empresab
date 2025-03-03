@@ -27,11 +27,8 @@ if uploaded_file is not None:
     # Mostrar la imagen principal procesada
     st.image(main_image, caption="Imagen Principal", use_container_width=True)
 
-    # Selección de la marca de agua
-    watermark_option = st.radio("Selecciona el estilo de marca de agua:", ("Opción 1", "Opción 2"))
-
-    # Cargar la marca de agua basada en la selección
-    watermark_file = "sello_gris_negro.png" if watermark_option == "Opción 1" else "sello_amarillo_gris.png"
+    # Cargar la marca de agua amarilla
+    watermark_file = "sello_amarillo_gris.png"  # Solo usamos la marca de agua amarilla
     try:
         watermark = Image.open(watermark_file).convert("RGBA")  # Marca de agua
     except FileNotFoundError:
