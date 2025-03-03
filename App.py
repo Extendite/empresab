@@ -1,10 +1,10 @@
 import streamlit as st
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageOps
 from io import BytesIO
 
 # Configuración de la página
-st.title("Agrega Empresa B a tu LinkedIn")
-st.write("Sube una imagen, ajusta el tamaño del logo de Empresa B, descarga el resultado ¡y comparte el orgullo de ser parte del movimiento que busca un nuevo modelo económico con Triple Impacto!")
+st.title("Generador de Foto de Perfil con Empresa B")
+st.write("Sube tu foto, recórtala en un círculo y agrega el logo de Empresa B. ¡Descarga el resultado y úsala en LinkedIn!")
 
 # Ocultar solo el footer con CSS
 hide_footer_style = """
@@ -15,7 +15,7 @@ hide_footer_style = """
 st.markdown(hide_footer_style, unsafe_allow_html=True)
 
 # Subir la imagen principal
-uploaded_file = st.file_uploader("Carga la imagen principal (PNG recomendado)", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Carga tu foto de perfil (PNG recomendado)", type=["png", "jpg", "jpeg"])
 if uploaded_file is not None:
     # Cargar la imagen principal
     try:
@@ -24,13 +24,26 @@ if uploaded_file is not None:
         st.error("Error al cargar la imagen principal: asegúrate de que el archivo sea válido.")
         st.stop()
 
-    # Mostrar la imagen principal procesada
-    st.image(main_image, caption="Imagen Principal", use_container_width=True)
+    # Mostrar la imagen original
+    st.image(main_image, caption="Imagen Original", use_column_width=True)
 
-    # Cargar la marca de agua amarilla
-    watermark_file = "sello_amarillo_gris.png"  # Solo usamos la marca de agua amarilla
+    # Recortar la imagen en un círculo
+    size = min(main_image.size)  # Tamaño del círculo (usamos la dimensión más pequeña)
+    mask = Image.new("L", (size, size), 0)  # Máscara circular
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, size, size), fill=255)  # Dibujar un círculo en la máscara
+
+    # Aplicar la máscara a la imagen
+    main_image_cropped = ImageOps.fit(main_image, (size, size))  # Recortar la imagen al tamaño del círculo
+    main_image_cropped.putalpha(mask)  # Aplicar la máscara circular
+
+    # Mostrar la imagen recortada en un círculo
+    st.image(main_image_cropped, caption="Imagen Recortada en Círculo", use_column_width=True)
+
+    # Cargar la marca de agua (logo de Empresa B)
+    watermark_file = "sello_amarillo_gris.png"  # Logo de Empresa B
     try:
-        watermark = Image.open(watermark_file).convert("RGBA")  # Marca de agua
+        watermark = Image.open(watermark_file).convert("RGBA")
     except FileNotFoundError:
         st.error(f"No se encontró el archivo '{watermark_file}'. Asegúrate de colocarlo en la misma carpeta que este script.")
         st.stop()
@@ -38,68 +51,43 @@ if uploaded_file is not None:
         st.error("Error al cargar la marca de agua: asegúrate de que el archivo sea válido.")
         st.stop()
 
-    # Continuar si la marca de agua existe
-    if watermark:
-        # Ajustar tamaño de la marca de agua
-        scale_factor = st.slider("Tamaño del logo (porcentaje del ancho):", 10, 100, 30)
-        watermark_width = int(main_image.width * (scale_factor / 100))
-        watermark_height = int(watermark.size[1] * (watermark_width / watermark.size[0]))
-        watermark_resized = watermark.resize((watermark_width, watermark_height))
+    # Ajustar tamaño de la marca de agua
+    scale_factor = st.slider("Tamaño del logo (porcentaje del ancho):", 10, 100, 30)
+    watermark_width = int(size * (scale_factor / 100))  # Tamaño proporcional al círculo
+    watermark_height = int(watermark.size[1] * (watermark_width / watermark.size[0]))
+    watermark_resized = watermark.resize((watermark_width, watermark_height))
 
-        # Calcular posición centralizada
-        position_x = (main_image.width - watermark_width) // 2
-        position_y = (main_image.height - watermark_height) // 2
+    # Crear un círculo semi-transparente (similar a "Open to Work")
+    circle_size = watermark_resized.width  # Tamaño del círculo igual al tamaño del logo
+    circle = Image.new("RGBA", (circle_size, circle_size), (0, 0, 0, 0))  # Fondo transparente
+    draw = ImageDraw.Draw(circle)
+    draw.ellipse((0, 0, circle_size, circle_size), fill=(0, 0, 0, 128))  # Círculo semi-transparente
 
-        # Botón para aplicar la marca de agua
-        if st.button("Aplicar"):
-            try:
-                # Crear capa para la marca de agua
-                overlay = Image.new("RGBA", main_image.size, (0, 0, 0, 0))  # Capa transparente
-                overlay.paste(watermark_resized, (position_x, position_y), watermark_resized)
+    # Combinar el círculo con el logo de Empresa B
+    circle.paste(watermark_resized, (0, 0), watermark_resized)
 
-                # Combinar capa de la marca de agua con la imagen principal
-                final_image = Image.alpha_composite(main_image, overlay)
+    # Posición del círculo en la esquina inferior izquierda
+    position_x = 20  # Margen de 20 píxeles desde el borde izquierdo
+    position_y = size - circle_size - 20  # Margen de 20 píxeles desde el borde inferior
 
-                # Mostrar la imagen con la marca de agua
-                st.image(final_image, caption="Imagen con Marca de Agua", use_container_width=True)
+    # Aplicar la marca de agua a la imagen recortada
+    final_image = main_image_cropped.copy()
+    final_image.paste(circle, (position_x, position_y), circle)
 
-                # Descargar la imagen con la marca de agua
-                buffer = BytesIO()
-                final_image.save(buffer, format="PNG")
-                buffer.seek(0)
+    # Mostrar la imagen final
+    st.image(final_image, caption="Imagen Final con Marca de Agua", use_column_width=True)
 
-                # Diseñar la distribución: botón, mensaje y logo
-                col1, col2, col3 = st.columns([2, 4, 2])
+    # Descargar la imagen final
+    buffer = BytesIO()
+    final_image.save(buffer, format="PNG")
+    buffer.seek(0)
 
-                with col1:
-                    st.download_button(
-                        label="Descargar Imagen final",
-                        data=buffer,
-                        file_name="imagen_final.png",
-                        mime="image/png",
-                    )
-
-                with col2:
-                    st.write(
-                        "*Este es un producto desarrollado por Extend*"
-                    )
-
-                with col3:
-                    try:
-                        logo = Image.open("AvatarET.png").convert("RGBA")  # Cargar logo de Extend
-
-                        # Ajustar tamaño del logo para que coincida con el tamaño del texto
-                        logo_width = 50
-                        logo_height = int(logo.size[1] * (logo_width / logo.size[0]))
-                        logo_resized = logo.resize((logo_width, logo_height))
-
-                        st.image(logo_resized, use_container_width=False)
-                    except FileNotFoundError:
-                        st.error("No se encontró el archivo 'AvatarET.png'. Asegúrate de colocarlo en la misma carpeta que este script.")
-            except Exception as e:
-                st.error("Error al aplicar la marca de agua. Inténtalo nuevamente.")
-
-
+    st.download_button(
+        label="Descargar Imagen Final",
+        data=buffer,
+        file_name="foto_perfil_empresa_b.png",
+        mime="image/png",
+    )
 
 
 
