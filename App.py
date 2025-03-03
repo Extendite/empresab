@@ -41,7 +41,7 @@ if uploaded_file is not None:
     # Continuar si la marca de agua existe
     if watermark:
         # Ajustar tamaño de la marca de agua
-        scale_factor = st.slider("Tamaño del logo (porcentaje del ancho):", 10, 100, 30)
+        scale_factor = st.slider("Tamaño del logo (porcentaje del ancho):", 10, 105, 30)
         watermark_width = int(main_image.width * (scale_factor / 100))
         watermark_height = int(watermark.size[1] * (watermark_width / watermark.size[0]))
         watermark_resized = watermark.resize((watermark_width, watermark_height))
